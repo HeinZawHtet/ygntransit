@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      body,
+      html {
+        height: 100%;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 80px;
+        left: 0;
+      }
+      .routes {
+        display: flex;
+        height: 80px;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+      }
+      .route-btn {
+        border: 0;
+        background-color: #ccc;
+        flex: 1;
+        margin: 8px;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div class="routes">
+      <button class="route-btn" onclick="updateRoute(1)">
+        Route 1
+      </button>
+      <button class="route-btn" onclick="updateRoute(2)">
+        Route 2
+      </button>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.15/lodash.min.js"></script>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvKVvdXhF1KKbnZS6Xvtw_RTKkjUX1f7Y&callback=initMap"
+      async
+      defer
+    ></script>
+    <script>
+      function updateRoute(route) {
+        window.location.search = 'route=' + route
+      }
+      var url = new URL(window.location)
+      var route = url.searchParams.get('route') || 1
+      var center =
+        route === 1
+          ? {
+              lat: 16.8995261,
+              lng: 96.1554455,
+            }
+          : { lat: 16.8280334, lng: 96.1216231 }
+
+      function initMap() {
+        var map = new google.maps.Map(document.getElementById('map'), {
+          zoom: 15,
+          center: center,
+          mapTypeId: 'terrain',
+        })
+        var trafficLayer = new google.maps.TrafficLayer()
+        trafficLayer.setMap(map)
+
+        fetch(
+          'https://cors-anywhere.herokuapp.com/https://www.startracker.io/public/get-routes'
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            var flightPlanCoordinates = _.map(
+              data[0].geojson.geometry.coordinates,
+              function (bus) {
+                return {
+                  lat: bus[1],
+                  lng: bus[0],
+                }
+              }
+            )
+            var flightPath = new google.maps.Polyline({
+              path: flightPlanCoordinates,
+              geodesic: true,
+              strokeColor: 'blue',
+              strokeOpacity: 1.0,
+              strokeWeight: 2,
+            })
+
+            flightPath.setMap(map)
+          })
+          .catch(console.error)
+        fetch(
+          'https://cors-anywhere.herokuapp.com/http://www.startracker.io/public/get-buses?route=' +
+            route
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            _.forEach(data, function (bus) {
+              new google.maps.Marker({
+                position: {
+                  lat: parseFloat(bus.track.lat),
+                  lng: parseFloat(bus.track.lon),
+                },
+                map: map,
+              })
+            })
+          })
+          .catch(console.error)
+      }
+    </script>
+  </body>
+</html>
